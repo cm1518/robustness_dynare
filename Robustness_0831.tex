@@ -1,0 +1,669 @@
+
+\documentclass[letter, fleqn, 11pt]{article}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{makeidx}
+\usepackage{amsfonts}
+\usepackage[authoryear]{natbib}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage[authoryear]{natbib}
+\usepackage{hyperref}
+\usepackage{showlabels}
+\usepackage{mathptmx}
+\usepackage{color}
+\usepackage[sf,bf,center]{titlesec}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+
+\setcounter{MaxMatrixCols}{10}
+%TCIDATA{OutputFilter=LATEX.DLL}
+%TCIDATA{Version=5.00.0.2552}
+%TCIDATA{<META NAME="SaveForMode" CONTENT="1">}
+%TCIDATA{LastRevised=Thursday, September 04, 2008 22:42:16}
+%TCIDATA{<META NAME="GraphicsSave" CONTENT="32">}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{acknowledgement}[theorem]{Acknowledgement}
+\newtheorem{algorithm}[theorem]{Algorithm}
+\newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{case}[theorem]{Case}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{conclusion}[theorem]{Conclusion}
+\newtheorem{condition}[theorem]{Condition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{criterion}[theorem]{Criterion}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{exercise}[theorem]{Exercise}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{notation}[theorem]{Notation}
+\newtheorem{problem}[theorem]{Problem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{solution}[theorem]{Solution}
+\newtheorem{summary}[theorem]{Summary}
+\newtheorem{assumption}[theorem]{Assumption}
+\makeatletter \chead{Learning under Fear}
+\newlength{\myFootnoteWidth}
+\newlength{\myFootnoteLabel}
+\setlength{\myFootnoteLabel}{.975em}
+\renewcommand{\@makefntext}[1]{  \setlength{\myFootnoteWidth}{\columnwidth}  \addtolength{\myFootnoteWidth}{-\myFootnoteLabel}  \noindent\makebox[\myFootnoteLabel][r]{\@makefnmark\ }  \parbox[t]{\myFootnoteWidth}{#1}} \makeatother
+\setlength{\parindent}{0in} \setlength{\parskip}{6pt} \addtolength{\hoffset}{-1.cm} \addtolength{\textwidth}{2cm} \addtolength{\voffset}{-1.cm}
+\addtolength{\textheight}{2cm} \frenchspacing \pagenumbering{arabic} \pretolerance=2000 \tolerance=3000
+\hypersetup{colorlinks=true,citecolor=blue, filecolor = red, linkcolor = red,breaklinks=true,frenchlinks=true} \onehalfspacing
+%\input{tcilatex}
+
+\begin{document}
+
+\title{Running LQ Robust Regulator Problems in Dynare}
+\date{February 2010 - Preliminary Version}
+\author{Prepared by the Artificial "Evil Agent"}
+\maketitle
+
+\section{Goal of this Document}
+This document shows how to formulate Linear Quadratic (LQ) problems that feature a decision maker that fears he or she might use a misspecified model of the economy.
+We borrow the LQ environment from Hansen \& Sargent (Recursive Models of Dynamic Linear Economies) and present matlab files that take as input the matrices governing the economic environment in Hansen \& Sargent and use the Dynare package to compute equilibrium outcomes and possibly estimate model parameters.
+Finally, we illustrate the matlab code using as an example the economy described by Hansen, Sargent \& Tallarini (1999).
+%This document is to explain how the Linear Quadratic LQ problem setup of Hansen and Sargent (HS) can be easily adapted for LQ
+%Robustness problems and solved using dynare. We present some examples. We use a matlab subroutine that does the job of building a dynare
+%\texttt{.mod} file to write a model that one can simulate and potentially estimate by inputting the matrixes in HS setup.
+
+\section{Hansen Sargent LQ Setup}
+
+This section describes the standard LQ setup that we borrow from Hansen \& Sargent.
+
+\begin{equation*}
+\max_{\left\{ c_{t},k_{t}\right\} }-\left( 1/2\right) \sum_{t=0}^{\infty
+}\beta ^{t}\left[ (s_{t}-b_{t})\cdot (s_{t}-b_{t})+(g_{t})\cdot (g_{t})%
+\right]
+\end{equation*}%
+subject to the following set of restrictions:
+
+\begin{eqnarray*}
+\Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi _{i}i_{t} &=&\Gamma k_{t-1}+d_{t} \\
+k_{t} &=&\Delta _{k}k_{t-1}+\Theta _{k}i_{t} \\
+h_{t} &=&\Delta _{h}h_{t-1}+\Theta _{h}c_{t} \\
+s_{t} &=&\Lambda h_{t-1}+\Pi c_{t}
+\end{eqnarray*}
+
+The exact interpretation of these equations will depend on the economic problem studied, but roughly speaking, the terms involved are: $s_{t}$ is a variable
+that maps consumption units today, $c_{t}$, and a stock of habits, $h_{t},$ into utilities, while $b_{t}$ is a shock affecting utility. $g_{t}$
+scales the utility, and may be seen as lump-sum transfers. The first restriction is a resource constraint. The second is the evolution of stocks
+of capital and the third is the process for the formation of habits (but these may also be seen as the accumulation of consumer durable after a
+purchase $c_{t}$)$.$
+
+Additionally, the random variables evolve according to:
+
+\begin{equation*}
+z_{t+1}=A_{22}z_{t}+C_{2}w_{t+1},b_{t}=U_{b}z_{t}\text{ and }d_{t}=U_{d}z_{t}
+\end{equation*}%
+$w_{t+1}$ is Gaussian vector with identity covariance matrix.
+
+The agent that is maximizing these equations chooses a sequence $%
+c_{t,}i_{t},k_{t},h_{t},g_{t}$ contingent on the state $%
+k_{t-1},h_{t-1},z_{t} $. Given the convexity of the objective function, we can setup the lagrangian and it will yield a set of first order
+necessary conditions (FONCs). The lagrangian will therefore be:
+
+\begin{eqnarray*}
+&&-\left( 1/2\right) E\{\sum_{t=0}^{\infty }\beta ^{t}\left[
+(s_{t}-b_{t})\cdot (s_{t}-b_{t})+(g_{t})\cdot (g_{t})\right] +... \\
+&&+{\scriptsize M}_{t}^{d\prime }\left[ \Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi
+_{i}i_{t}-\Gamma k_{t-1}-d_{t}\right] ... \\
+&&+{\scriptsize M}_{t}^{k\prime }\left[ k_{t}-\Delta _{k}k_{t-1}-\Theta
+_{k}i_{t}\right] ... \\
+&&+{\scriptsize M}_{t}^{h\prime }\left[ h_{t}-\Delta _{h}h_{t-1}-\Theta
+_{h}c_{t}\right] ... \\
+&&+{\scriptsize M}_{t}^{s\prime }\left[ s_{t}-\Lambda h_{t-1}-\Pi c_{t}%
+\right] \}
+\end{eqnarray*}
+
+%This lagrangian corresponds to HS's equation...
+
+\section{First Order Conditions}
+
+The FONCs for the problem, found in system 4.2.4 of Hansen and Sargent are:
+
+\begin{eqnarray*}
+\left( c_{t}\right)  &:&-{\scriptsize M}_{t}^{d\prime }\Phi _{c}+%
+{\scriptsize M}_{t}^{h\prime }\Theta _{h}+{\scriptsize M}_{t}^{s\prime }\Pi
+=0 \\
+\left( g_{t}\right)  &:&g_{t}-\Phi _{g}{\scriptsize M}_{t}^{d}=0 \\
+\left( h_{t}\right)  &:&-{\scriptsize M}_{t}^{h\prime }+\beta E\left[
+{\scriptsize M}_{t+1}^{h\prime }\Delta _{h}+{\scriptsize M}_{t+1}^{s\prime
+}\Lambda \right] =0 \\
+\left( i_{t}\right)  &:&-{\scriptsize M}_{t}^{d\prime }\Phi _{i}+%
+{\scriptsize M}_{t}^{k\prime }\Theta _{i}=0 \\
+\left( k_{t}\right)  &:&-{\scriptsize M}_{t}^{k\prime }\Delta _{k}+\beta E%
+\left[ {\scriptsize M}_{t+1}^{d\prime }\Gamma +{\scriptsize M}%
+_{t+1}^{k\prime }\Delta _{k}\right] =0 \\
+\left( s_{t}\right)  &:&-(s_{t}-b_{t})+{\scriptsize M}_{t}^{s}=0
+\end{eqnarray*}
+
+and it represents a system of linear difference equations of order n, where the order depends on the nature of the problem studied. The reason
+why the derivative of the squared terms does not have a 2 in front is because we premultiplied the objective by 1/2. You may also note that the
+second and sixth blocks have the matrixes transposed. This is a result of taking the derivatives of a variable that appears in the objective
+function, which yields the vector itself, and in the restriction which yields the j-th variable, the sum of the j-th row of whatever matrix they
+multiply and the j-th multiplier. This equations together with the restrictions determine the solution:
+
+\begin{eqnarray*}
+\Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi _{i}i_{t} &=&\Gamma k_{t-1}+d_{t} \\
+k_{t} &=&\Delta _{k}k_{t-1}+\Theta _{k}i_{t} \\
+h_{t} &=&\Delta _{h}h_{t-1}+\Theta _{h}c_{t} \\
+s_{t} &=&\Lambda h_{t-1}+\Pi c_{t} \\
+b_{t} &=&U_{b}z_{t} \\
+d_{t} &=&U_{d}z_{t}
+\end{eqnarray*}
+
+\section{LQ Robustness Setup}
+
+The problem of a decision maker that fears model misspecification for the same economic problem has a similar
+construction. It is described by a similar setup in which to agents play the
+following game:%
+\begin{equation*}
+\min_{\left\{ w_{t+1}\right\} }\max_{\left\{ c_{t},k_{t}\right\}
+}-E\{\sum_{t=0}^{\infty }\beta ^{t}\left( \frac{1}{2}\right) \left[
+(s_{t}-b_{t})\cdot (s_{t}-b_{t})+(g_{t})\cdot (g_{t})\right] -\beta \theta
+w_{t+1}\cdot w_{t+1}\}
+\end{equation*}%
+subject to the following set of restrictions:
+
+\begin{eqnarray*}
+\Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi _{i}i_{t} &=&\Gamma k_{t-1}+d_{t} \\
+k_{t} &=&\Delta _{k}k_{t-1}+\Theta _{k}i_{t} \\
+h_{t} &=&\Delta _{h}h_{t-1}+\Theta _{h}c_{t} \\
+s_{t} &=&\Lambda h_{t-1}+\Pi c_{t} \\
+b_{t} &=&U_{b}z_{t} \\
+d_{t} &=&U_{d}z_{t}
+\end{eqnarray*}%
+and the minimizer or "evil" agent chooses $w_{t+1},$ that will affect:
+
+\begin{equation*}
+z_{t+1}=A_{22}z_{t}+C_{2}w_{t+1}
+\end{equation*}%
+$w_{t+1}$ is not an exogenous Gaussian vector any more, but corresponds to a chosen process by the evil agent (It will happen though that in these types of
+problems, the worst choice happens to be Gaussian too with mean $w_{t+1}$! and this is a feature we exploit later).
+Then, these shocks are transformed accordingly to $%
+b_{t}=U_{b}z_{t}$ and $d_{t}=U_{d}z_{t}.$
+
+The Robustness problem can also be written as a Lagrangian:
+
+\begin{eqnarray*}
+&&\min_{\left\{ w_{t+1}\right\} }\max_{\left\{ c_{t},k_{t}\right\}
+}-\{\sum_{t=0}^{\infty }\left( 1/2\right) \beta ^{t}\left[
+(s_{t}-b_{t})\cdot (s_{t}-b_{t})+(g_{t})\cdot (g_{t})\right] -\beta \theta
+\frac{w_{t+1}\cdot w_{t+1}}{2}\} \\
+&&+{\scriptsize M}_{t}^{d\prime }\left[ \Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi
+_{i}i_{t}-\Gamma k_{t-1}-d_{t}\right]  \\
+&&+{\scriptsize M}_{t}^{k\prime }\left[ k_{t}-\Delta _{k}k_{t-1}-\Theta
+_{k}i_{t}\right]  \\
+&&+{\scriptsize M}_{t}^{h\prime }\left[ h_{t}-\Delta _{h}h_{t-1}-\Theta
+_{h}c_{t}\right]  \\
+&&+{\scriptsize M}_{t}^{s\prime }\left[ s_{t}-\Lambda h_{t-1}-\Pi c_{t}%
+\right]  \\
+&&+{\scriptsize M}_{t}^{z\prime }\left[ -z_{t+1}+A_{22}z_{t}+C_{2}w_{t+1}%
+\right] \}
+\end{eqnarray*}
+
+\section{The Robust\ Solution}
+
+The set of linear equations determining the outcome will be similar to those of the
+original LQ problem:
+
+\begin{eqnarray}
+\left( c_{t}\right)  &:&-{\scriptsize M}_{t}^{d\prime }\Phi _{c}+%
+{\scriptsize M}_{t}^{h\prime }\Theta _{h}+{\scriptsize M}_{t}^{s\prime }\Pi
+=0  \label{SYSTEM1} \\
+\left( g_{t}\right)  &:&g_{t}-\Phi _{g}{\scriptsize M}_{t}^{d}=0  \notag \\
+\left( h_{t}\right)  &:&-{\scriptsize M}_{t}^{h\prime }+\beta E\left[
+{\scriptsize M}_{t+1}^{h\prime }\Delta _{h}+{\scriptsize M}_{t+1}^{s\prime
+}\Lambda \right] =0  \notag \\
+\left( i_{t}\right)  &:&-{\scriptsize M}_{t}^{d\prime }\Phi _{i}+%
+{\scriptsize M}_{t}^{k\prime }\Theta _{i}=0  \notag \\
+\left( k_{t}\right)  &:&-{\scriptsize M}_{t}^{k\prime }\Delta _{k}+\beta E%
+\left[ {\scriptsize M}_{t+1}^{d\prime }\Gamma +{\scriptsize M}%
+_{t+1}^{k\prime }\Delta _{k}\right] =0  \notag \\
+\left( s_{t}\right)  &:&-(s_{t}-b_{t})+{\scriptsize M}_{t}^{s}=0  \notag \\
+\left( w_{t+1}\right)  &:&\beta \theta w_{t+1}+C_{2}^{^{\prime }}%
+{\scriptsize M}_{t}^{z}=0  \notag \\
+\left( z_{t+1}\right)  &:&-\beta E\left[ U_{d}^{\prime }{\scriptsize M}%
+_{t+1}^{d}\right] +\beta E\left[ A_{22}^{\prime }{\scriptsize M}_{t+1}^{z}%
+\right] -\beta E\left[ \left( s_{t+1}-b_{t+1}\right) U_{b}^{\prime }%
+{\scriptsize M}_{t+1}^{z}\right] -{\scriptsize M}_{t}^{z}=0  \notag
+\end{eqnarray}
+
+This set of equations is then complemented by:
+
+\begin{eqnarray*}
+\Phi _{c}c_{t}+\Phi _{g}g_{t}+\Phi _{i}i_{t} &=&\Gamma k_{t-1}+d_{t} \\
+k_{t} &=&\Delta _{k}k_{t-1}+\Theta _{k}i_{t} \\
+h_{t} &=&\Delta _{h}h_{t-1}+\Theta _{h}c_{t} \\
+s_{t} &=&\Lambda h_{t-1}+\Pi c_{t}
+\end{eqnarray*}%
+and the minimizer or "evil" agent chooses $w_{t+1},$ that will affect:
+
+\begin{equation*}
+z_{t+1}=A_{22}z_{t}+C_{2}\left( w_{t+1}+\epsilon _{t}\right)
+\end{equation*}%
+where $\epsilon _{t}\sim N\left( 0,I\right) .$
+
+Before explaining how the matlab code works we need to explain how we map the worst case distortions into our LQ framework. Notice that $\epsilon _{t}$ was not appearing in our original
+problem. In the original Robustness Setup, the evil agent chooses a distribution over the sequences of outcomes $w_{t},$ but not the outcomes
+themselves. %Here, $\epsilon _{t}$ is a randomization device.
+By the certainty equivalence principle that shows up in LQ problems, we know that
+for any choice of the distribution (in the standard setup) for $w_{t}$, the maximizer's optimal behavior will depend only on the first moment.
+Hence the choice of $w_{t+1}$ in this setup is equivalent to the choice of the mean of a particular
+process. But why is then $\epsilon _{t}$ also Gaussian, and moreover $%
+N\left( 0,I\right) ?$ Well, the distorted probability will behave like we
+changed the maximizer agents model's mean zero Gaussian shocks to $N\left(
+w_{t+1},I\right) $. Gaussianity is a property of the Robust Problem when
+the approximating model is Gaussian. The i.i.d with variance 1 of the shocks
+is in fact, not strictly correct: the worst Gaussian Variance-Covariance
+matrix in fact needs to be computed differently, but at this stage, we only
+care for the optimal policy of the maximizing agent and the mean of the
+worst case scenario and this is sufficient. Please take this into account when interpreting (and scaling) impulse responses. %Having said the we proceed to
+%explain how the codes work.
+We also include in our zip file of matlab codes a file called \begin{verbatim} HSLQ_dyn.m \end{verbatim} that computes the standard LQ problem without robustness described above. That file treats $w$ directly as a vector of exogenous disturbances. 
+\newpage
+
+\section{Using Dynare to Compute Robust Policies}
+
+The \texttt{HS\_Robust\_dyn}.m code enables the user to compute robust policies with dynare by simply by inputting matrixes from the LQ setup.
+The program reads matrixes from the LQ setup and uses the general solution to the problem to write a MOD file for the system of stochastic
+difference equations. The instructions are very simple.
+
+\subsection{What to do?}
+
+\textbf{What to do?} The user must write up a simple m-file to use to declare all of the matrixes in the linear quadratic setup and declare some
+of the optional parameters. The user should write up an m-file with that includes the following:
+
+\begin{enumerate}
+\item \textbf{Declaration of matrixes:} The first thing the user has to do
+is declare ALL of these matrixes: \texttt{Phi\_c, Phi\_g, Phi\_i, Gamma,
+Delta\_k, Theta\_k, Delta\_h,.Theta\_h, Lambda, Pi, A22,C2, U\_b, U\_d};
+
+\item \textbf{Declaration of options for Dynare: }Variables that go in the standard set of options for dynare should be included. For example
+one can include statements like:
+
+\begin{itemize}
+\item \texttt{periods=5000;} (for number of simulations in Dynare)
+
+\item \texttt{irfperiods=15; }(for number of periods in irf's in Dynare)
+\end{itemize}
+
+\item \textbf{File Name:} A statement assigning the variable \texttt{filename%
+} a script should be included:(e.g. \texttt{filename ='Hall\_Test.mod';}
+
+\item \textbf{Optional: }Assign a value for the optional dummy variable
+\texttt{run} if you decide whether or not you want to directly execute the
+generated dynare. Assign \texttt{run=1;}
+
+\item \textbf{Constant in state vector: }If there is a constant in the state vector $z$, you have to set \texttt{constant=1}. The constant has to be the first element of the $z$ vector.
+
+\item \textbf{Calling the file:} Call the Hansen Sargent converter \ by
+simply writing the following statement \texttt{HS\_Robust\_dyn};\newpage
+\end{enumerate}
+
+\subsection{How does the code work?}
+
+\textbf{How does the code do it?} \bigskip The code does something
+simple. It reads the matrixes from HS-LQ setup and declares variables and
+equations in a mod.file using dynare syntax. \ The steps followed are:
+
+\begin{enumerate}
+\item Reading Dimensions of Matrixes
+
+\begin{itemize}
+\item For example, for the matrix \texttt{Phi\_c, }it uses the following
+statement to set in memory the number of rows and columns:
+
+[rr\_Phi\_c cc\_Phi\_c] =size(Phi\_c) ;
+\end{itemize}
+
+\item Checking Consistency:
+
+\begin{itemize}
+\item The matrixes must be conformable in HS-LQ setup. The code checks for
+consistency along columns and rows:
+
+\small
+\begin{verbatim}
+
+if  cc_Phi_c~=cc_Theta_h || cc_Pi~=cc_Theta_h || cc_Phi_i~=cc_Theta_k || ...
+cc_Delta_h~=cc_Lambda || cc_Delta_k~=cc_Gamma || cc_U_b~=cc_U_d || cc_U_b~=cc_A22
+disp('Error -- dimensions of matrices do not match... check number of columns')
+end
+
+if  rr_Phi_c~=rr_Phi_g || rr_Phi_c~=rr_Phi_g || rr_Phi_c~=rr_Gamma || ...
+rr_Delta_k~=rr_Theta_k || rr_Delta_h~=rr_Theta_h || rr_Lambda~=rr_Pi || rr_A22~=rr_C2
+disp('Error -- dimensions of matrices do not match... check number of rows')
+end
+
+\end{verbatim}
+\normalsize
+\texttt{\qquad disp('Error -- dimensions of matrices do not match... check
+number of columns')}
+
+\texttt{end}
+\end{itemize}
+
+\item Creating an m-file:
+
+\begin{itemize}
+\item This statement generates an object in memory that is used to record
+what we are writing:
+
+\texttt{fid = fopen(filename,'wt');}
+\end{itemize}
+
+\item Declaring Variables:
+
+\begin{itemize}
+\item For each of the matrixes in the LQ setup. The converter, will read the
+number of columns and assign a variable. The number of columns corresponds
+to the number of consumption variables. For example, it uses the following
+statement to declare the consumption goods variables in the resource
+constraint block:
+
+\texttt{fprintf(fid,'\textbackslash n var ');}
+
+\texttt{for i=1:(cc\_Phi\_c)}
+
+\texttt{\qquad fprintf(fid,'c\%g ',i);}
+
+\texttt{end}
+\end{itemize}
+
+\item Declaring Parameters:
+
+\begin{itemize}
+\item A similar proceduer is used to declare parameters.\ This block writes
+up the paramter declaration followed by the variables \texttt{beta, theta, }%
+and the elements in\texttt{\ Phi\_c}:
+
+\texttt{fprintf(fid,'parameters ');}
+
+\texttt{fprintf(fid,'beta ') ;}
+
+\texttt{fprintf(fid,'theta ') ;}
+
+\texttt{for j=1:rr\_Phi\_c}
+
+\qquad \texttt{for i=1:cc\_Phi\_c}
+
+\texttt{\ \qquad \qquad fprintf(fid,'Phi\_c\_\%g\%g ',j,i);}
+
+\qquad \texttt{end}
+
+\texttt{end}
+\end{itemize}
+
+\item Setting Parameter Values:
+
+\begin{itemize}
+\item Using a similar statement we declare parameters. The variable \texttt{%
+\%g} in the statement is assign the value of the variable after the second comma. \texttt{\textbackslash n }means that the lines ends
+there:
+
+\texttt{fprintf(fid,'beta=\%g ;\textbackslash n',beta) ;}
+
+\texttt{fprintf(fid,'theta=\%g ;\textbackslash n',theta) ;}
+
+\texttt{for j=1:rr\_Phi\_c}
+
+\texttt{\qquad for i=1:cc\_Phi\_c}
+
+\texttt{\qquad \qquad fprintf(fid,'Phi\_c\_\%g\%g =\%g ;\textbackslash n',j,i,Phi\_c(j,i));}
+
+\texttt{\qquad end}
+
+\texttt{end}
+\end{itemize}
+
+\item Declaring Equations:
+
+\begin{itemize}
+\item This section of the code writes up the corresponding equation for the
+system that characterizes the solution to the robust problem $\left( \ref%
+{SYSTEM1}\right) .$ For example, to write in the first block of equations in
+the system: ${\scriptsize M}_{t}^{d\prime }\Phi _{c}+{\scriptsize M}%
+_{t}^{h\prime }\Theta _{h}=0$ we use the following commands:
+
+\texttt{for i=1:(rr\_Phi\_c)}
+
+\qquad \texttt{for j=1:(cc\_Phi\_c)}
+
+\qquad \qquad \texttt{fprintf(fid,'Phi\_c\_\%g\%g*c\%g + ',i,j,j); }
+
+\qquad \texttt{end}
+
+\qquad \texttt{for j=1:(cc\_Phi\_g)}
+
+\qquad \qquad \texttt{fprintf(fid,'Phi\_g\_\%g\%g*g\%g + ',i,j,j); }
+
+\qquad \texttt{end}
+
+\qquad \texttt{for j=1:(cc\_Phi\_i)}
+
+\qquad \qquad \texttt{fprintf(fid,'Phi\_i\_\%g\%g*i\%g = ',i,j,j); }
+
+\qquad \texttt{end}
+
+\qquad \texttt{for j=1:(cc\_Gamma)}
+
+\qquad \qquad \texttt{fprintf(fid,'Gamma\_\%g\%g*k\%g + ',i,j,j); }
+
+\qquad \texttt{end}
+
+\qquad \texttt{fprintf(fid,'d\%g',i); }
+
+\qquad \texttt{fprintf(fid,'; \textbackslash n'); }
+
+\texttt{end}
+\end{itemize}
+
+\item Running Dynare:
+
+\begin{itemize}
+\item This step simply follows the dynare syntax to call dynare according to the previously defined preferences:
+
+\texttt{fprintf(fid,'shocks; \textbackslash n');}
+
+\texttt{for i=1:cc\_C2}
+
+\qquad \texttt{fprintf(fid,'var e\%g; \textbackslash n',i);}
+
+\qquad \texttt{fprintf(fid,'stderr 1;  \textbackslash n');}
+
+\texttt{end}
+
+\texttt{fprintf(fid,'end; \textbackslash n )}%
+
+\texttt{fprintf(fid,' \textbackslash n');}
+
+\texttt{fprintf(fid,'steady; \textbackslash n \%
+n');}
+
+\begin{verbatim}fprintf(fid,'stoch\_simul(solve\_algo=3, periods=\%g); \n',irfperiods,periods); \end{verbatim}
+
+\texttt{fclose(fid);}
+
+\texttt{if (run)}
+
+\qquad \texttt{dynare(filename)}
+
+\texttt{end}
+\end{itemize}
+\end{enumerate}
+
+\section{One Example}
+
+This section shows how the model in Hansen, Sargent \& Tallarini can be solved using our code. Details on how to map a LQ decision problem to the form used here can be found in the LQ Hansen and Sargent Manuscript.
+
+
+\subsection{Hansen, Sargent and Tallarini (1999, RES)}
+
+\subsubsection{The Problem}
+
+This is a version of the model of Hansen, Sargent and Tallarini (1999). The
+planner solves the following problem:%
+\begin{equation*}
+\min_{\left\{ w_{t+1}\right\} }\max_{\left\{ c_{t},k_{t}\right\}
+}E\{\sum_{t=0}^{\infty }\beta ^{t}-\left( 1/2\right) \left[
+(s_{t}-b_{t})^{2}-\beta \Theta \frac{w_{t+1}\cdot w_{t+1}}{2}\right]
+\end{equation*}%
+The input of the utility function are an indirect service for the household, $%
+s_{t},$ and\ a preference shock $b_{t}$ that satisfy the following:
+
+\begin{equation*}
+s_{t}=\Lambda h_{t-1}+\Pi c_{t}
+\end{equation*}%
+The resource constraint for this economy is a linear production function and
+
+\begin{equation*}
+c_{t}+i_{t}=\left( 1+r\right) k_{t-1}+y_{t}
+\end{equation*}%
+an exogenous productivity shift:
+
+\begin{equation*}
+y_{t}=U_{y}z_{t}
+\end{equation*}
+
+The Robust planner problem is different from the standard model in that: a
+minimizer or "evil" agent chooses $w_{t+1},$ that will affect:%
+\begin{equation*}
+z_{t+1}=A_{z}z_{t}+C_{Z}w_{t+1}
+\end{equation*}%
+and we parameterize this to have a stable solution:
+
+\begin{equation*}
+\gamma :=\left( 1+r\right) =\frac{1}{\beta }
+\end{equation*}%
+For a pair of AR(2) processes, we have the following values of $A_{z}$ and $%
+C_{Z}$:
+
+$A_{z}=\left[
+\begin{array}{ccccc}
+1 & 0 & 0 & 0 & 0 \\
+0 & \rho _{22} & \rho _{23} & 0 & 0 \\
+0 & 1 & 0 & 0 & 0 \\
+0 & 0 & 0 & \rho _{44} & \rho _{45} \\
+0 & 0 & 0 & 1 & 0%
+\end{array}%
+\right] $ and $C_{z}=\left[
+\begin{array}{cc}
+0 & 0 \\
+1 & 0 \\
+0 & 0 \\
+0 & 1 \\
+0 & 0%
+\end{array}%
+\right] $ \\ $U_{y}=[5$ $1$ $0$ $1$ $0].$
+
+
+
+\subsubsection{The Code}
+
+The following code (\begin{verbatim} Example_HST.m \end{verbatim}) computes the equilibrium of the model described above.
+
+\texttt{\% Declaration of Parameters}
+
+\texttt{delta=0.05;}
+
+\texttt{beta=1/1.05;}
+
+\texttt{theta=10;}
+
+\bigskip
+
+\texttt{\% Matrix Form}
+
+\texttt{Phi\_c=1 ; }
+
+\texttt{Phi\_g=0 ;}
+
+\texttt{Phi\_i=1 ;}
+
+\texttt{Gamma=0.1 ;}
+
+\texttt{Delta\_k=1-delta ;}
+
+\texttt{Theta\_k=1 ; }
+
+\texttt{Delta\_h=0 ; }
+
+\texttt{Theta\_h=1 ;}
+
+\texttt{Lambda=0 ;}
+
+\texttt{Pi=1 ; }
+
+\texttt{A22=[1 0 0 0 0; 0 0.1 0.2 0 0; 0 1 0 0 0; 0 0 0 0.1 0.2; 0 0 0 0 1];}
+
+\texttt{C2=[0 0; 1 0; 0 0; 0 1; 0 0] ;}
+
+\texttt{U\_b=[30 0 0 0 0] ;}
+
+\texttt{U\_d=[5 1 0 1 0] ;}
+
+\bigskip
+
+\texttt{\%\% User Preferences for Dynare}
+
+\texttt{periods=5000; \%parameters for simulation }
+
+\texttt{irfperiods=15; \%parameters for irf's}
+
+\texttt{filename='\texttt{HST\_Test\_AR2.mod}'; \%pick filename for mod file}
+
+\texttt{\%Optional: decide whether or not you want to directly execute the
+generated dynare}
+
+\texttt{\%code (set run=1 to execute)}
+
+\bigskip \texttt{run=1;}
+
+\bigskip \texttt{constant=1;}
+
+\texttt{\%set=1 if first element of z vector is a constant}
+
+\texttt{\%\% Call the Hansen Sargent converter:}
+
+\texttt{HS\_Robust\_dyn;}
+
+\bigskip
+
+This piece of matlab code generates a Mod-File that dynare is able to run. The matlab file is saved as \texttt{'\texttt{HST\_Test\_AR2.mod}'.
+} We can alter this mod file to
+be able to estimate the model.
+
+%\subsubsection{Results}
+%
+%Here we plot the sensibility to the parameter $\theta $ in Hansen, Sargent
+%and Tallarini's Model. The sensibility is done over the Impulse Response.
+%The first figure plots the impulse to both, transitory and permanent shocks,
+%of consumption. Dotted lines represent a stronger concern for Robustness.
+%
+%\FRAME{ftbpFU}{7.5905in}{4.1122in}{0pt}{\Qcb{Response of Consumption}}{}{%
+%consumptionhst.tif}{\special{language "Scientific Word";type
+%"GRAPHIC";maintain-aspect-ratio TRUE;display "USEDEF";valid_file "F";width
+%7.5905in;height 4.1122in;depth 0pt;original-width 13.3017in;original-height
+%7.1875in;cropleft "0.03305";croptop "0.994903";cropright
+%"1.03305";cropbottom "-0.005097";filename 'Boston FED
+%Presentation/ConsumptionHST.tif';file-properties "XNPEU";}}
+%
+%This figure plots the impulse response of investment again to both shocks.
+%
+%\FRAME{ftbpFU}{7.3198in}{3.9652in}{0pt}{\Qcb{Response of Investment}}{}{%
+%investmenthst.tif}{\special{language "Scientific Word";type
+%"GRAPHIC";maintain-aspect-ratio TRUE;display "USEDEF";valid_file "F";width
+%7.3198in;height 3.9652in;depth 0pt;original-width 13.3017in;original-height
+%7.1875in;cropleft "0.029999";croptop "1";cropright "1.029999";cropbottom
+%"0";filename 'Boston FED Presentation/InvestmentHST.tif';file-properties
+%"XNPEU";}}
+%
+%%\section{Other Examples}
+
+
+\end{document}
